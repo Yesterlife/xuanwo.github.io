@@ -1,4 +1,4 @@
-<!doctype html><html><head><title>Hexo常见问题解决方案</title><meta charset=utf-8><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1,maximum-scale=1"><meta name=description content="A blog maintained by an interesting programmer."><meta name=keywords content="Technology,Code,Program,Linux,"><meta name=author content="Xuanwo"><meta property="og:title" content="Hexo常见问题解决方案"><meta property="og:description" content="A blog maintained by an interesting programmer."><meta property="og:type" content="website"><meta property="og:locale" content="en_US"><meta property="og:url" content="https://xuanwo.io/2014/08/14/hexo-usual-problem/"><link rel="shortcut icon" href=/favicon.ico><link rel=stylesheet href=/css/main.min.5a9ffcf343273240b691845bba645faa19f2008c05742711b684042a3063818b.css integrity="sha256-Wp/880MnMkC2kYRbumRfqhnyAIwFdCcRtoQEKjBjgYs="><link href=http://gmpg.org/xfn/11 rel=profile><meta name=generator content="Hugo 0.69.0"></head><body><nav class=nav><div class=nav-container><div class=brand><a href=https://xuanwo.io>Xuanwo's Blog</a></div><div class=links><a class=main-nav-link href=/about/>About</a>
+<!doctype html><html><head><title>Hexo常见问题解决方案</title><meta charset=utf-8><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1,maximum-scale=1"><meta name=description content="A blog maintained by an interesting programmer."><meta name=keywords content="Technology,Code,Program,Linux,"><meta name=author content="Xuanwo"><meta property="og:title" content="Hexo常见问题解决方案"><meta property="og:description" content="A blog maintained by an interesting programmer."><meta property="og:type" content="website"><meta property="og:locale" content="en_US"><meta property="og:url" content="https://xuanwo.io/2014/08/14/hexo-usual-problem/"><link rel="shortcut icon" href=/favicon.ico><link rel=stylesheet href=/css/main.min.5a9ffcf343273240b691845bba645faa19f2008c05742711b684042a3063818b.css integrity="sha256-Wp/880MnMkC2kYRbumRfqhnyAIwFdCcRtoQEKjBjgYs="><link href=http://gmpg.org/xfn/11 rel=profile><meta name=generator content="Hugo 0.69.1"></head><body><nav class=nav><div class=nav-container><div class=brand><a href=https://xuanwo.io>Xuanwo's Blog</a></div><div class=links><a class=main-nav-link href=/about/>About</a>
 <a class=main-nav-link href=/posts/>Posts</a></div></div></nav><main id=main-content><article class="single container"><header class=single-header><div class=flex><h1>Hexo常见问题解决方案</h1><div class=post-meta><time class=date datetime=2014-08-14T05:20:00.000+00:00 itemprop=datePublished>2014-08-14</time></div><div class=tag-container><a style=text-decoration:none href=https://xuanwo.io/tags/software><span>Software</span></a>
 <a style=text-decoration:none href=https://xuanwo.io/tags/hexo><span>Hexo</span></a>
 <a style=text-decoration:none href=https://xuanwo.io/tags/github-pages><span>Github-Pages</span></a>
@@ -42,7 +42,7 @@ Global Options:
 For more help, you can use hexo help [command] for the detailed information
 or you can check the docs: http://zespia.tw/hexo/docs/
 
-</code></pre><p><strong>解决方案：</strong></p><ol><li>检查<code>_config.yml</code>中的内容，特别注意<code>:</code>后面需要有一个空格。</li><li>检查`package.json'中的内容，注意添加hexo信息用来标识这是一个hexo目录：</li></ol><pre><code>
+</code></pre><p><strong>解决方案：</strong></p><ol><li>检查<code>_config.yml</code>中的内容，特别注意<code>:</code>后面需要有一个空格。</li><li>检查`package.json&rsquo;中的内容，注意添加hexo信息用来标识这是一个hexo目录：</li></ol><pre><code>
 {
   &quot;hexo&quot;: {
     &quot;version&quot;: &quot;&quot;
@@ -92,7 +92,7 @@ iption: Description\nread_more: Read More\n\u0000',
 
 </code></pre><p><strong>解决方案：</strong></p><p>主题目录下所有yml文件中所有有空格的字段都用双引号括起来，尤其注意languages下面的yml文件。
 <img src=/imgs/opinion/hexo-languages-error.png alt=就像这样>
-<em>感谢<a href=https://github.com/dukewan>@dukewan</a>提供的截图</em></p><h2 id=修改主题文件之后网页不更新>修改主题文件之后，网页不更新</h2><p><strong>问题描述：</strong></p><p>在修改主题文件之后，页面的文件依然没有更新。</p><p><strong>解决方案：</strong></p><p><code>hexo clean</code>并且删除<code>.deploy_git</code>文件夹之后，<code>hexo d -g</code>。为了强制浏览器更新资源文件，可以采用&rsquo;Ctrl+F5'来刷新。</p><h2 id=页面没有渲染partial转义失败>页面没有渲染（partial转义失败）</h2><p><strong>问题描述：</strong></p><p><a href=https://github.com/hexojs/hexo/issues/838>参见Issues</a>
+<em>感谢<a href=https://github.com/dukewan>@dukewan</a>提供的截图</em></p><h2 id=修改主题文件之后网页不更新>修改主题文件之后，网页不更新</h2><p><strong>问题描述：</strong></p><p>在修改主题文件之后，页面的文件依然没有更新。</p><p><strong>解决方案：</strong></p><p><code>hexo clean</code>并且删除<code>.deploy_git</code>文件夹之后，<code>hexo d -g</code>。为了强制浏览器更新资源文件，可以采用&rsquo;Ctrl+F5&rsquo;来刷新。</p><h2 id=页面没有渲染partial转义失败>页面没有渲染（partial转义失败）</h2><p><strong>问题描述：</strong></p><p><a href=https://github.com/hexojs/hexo/issues/838>参见Issues</a>
 看不到渲染后的页面，只能看到类似如下信息：</p><pre><code>
 &lt;%- partial('_partial/head') %&gt;
 &lt;%- partial('_partial/header', null, {cache: !config.relative_link}) %&gt;
@@ -101,7 +101,7 @@ iption: Description\nread_more: Read More\n\u0000',
 &lt;%- partial('_partial/footer', null, {cache: !config.relative_link}) %&gt;
 &lt;%- partial('_partial/mobile-nav', null, {cache: !config.relative_link}) %&gt; &lt;%- partial('_partial/after-footer') %&gt;
 
-</code></pre><p><strong>解决方案：</strong></p><p>在博客所在目录下执行&rsquo;npm install'用以安装插件。</p><p><strong>感谢<a href=http://zespia.tw/>@tommy351</a>提供的解决方案</strong></p><h2 id=更新至300版本后文件渲染时卡死>更新至3.0.0版本后，文件渲染时卡死</h2><p><strong>问题描述：</strong></p><p><a href=https://github.com/hexojs/hexo/issues/1137>参见Issues</a>
+</code></pre><p><strong>解决方案：</strong></p><p>在博客所在目录下执行&rsquo;npm install&rsquo;用以安装插件。</p><p><strong>感谢<a href=http://zespia.tw/>@tommy351</a>提供的解决方案</strong></p><h2 id=更新至300版本后文件渲染时卡死>更新至3.0.0版本后，文件渲染时卡死</h2><p><strong>问题描述：</strong></p><p><a href=https://github.com/hexojs/hexo/issues/1137>参见Issues</a>
 表现为文件不多，但是渲染非常缓慢，超过半个小时。</p><p><strong>问题分析：</strong></p><p>问题出在<code>Highlight.js</code>在判断语言类型时，会因为<code>-</code>这个符号导致卡死。</p><p><strong>解决方案：</strong></p><p>在使用代码块时，明确使用类型，或者全部使用<code>plain</code>类型，如下：</p><p>{% raw %}</p><pre><code>
 plain
 something
