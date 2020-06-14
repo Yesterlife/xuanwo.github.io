@@ -1,4 +1,109 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>gRPC on 漩涡的博客</title><link>https://xuanwo.io/tags/grpc/</link><description>Recent content in gRPC on 漩涡的博客</description><generator>Hugo -- gohugo.io</generator><language>zh-Hans</language><lastBuildDate>Sun, 10 Mar 2019 04:00:00 +0000</lastBuildDate><atom:link href="https://xuanwo.io/tags/grpc/index.xml" rel="self" type="application/rss+xml"/><item><title>go-mime 介绍以及踩坑记录</title><link>https://xuanwo.io/2020/04-go-mime-intro/</link><pubDate>Mon, 01 Jun 2020 01:00:00 +0000</pubDate><guid>https://xuanwo.io/2020/04-go-mime-intro/</guid><description>&lt;p>上周花了一天时间写了一个 &lt;a href="https://github.com/qingstor/go-mime">MIME 检测&lt;/a> 的库，作用是能够根据后缀名来检测对应的 Media Type 类型，比如说输入 &lt;code>pdf&lt;/code> 能够返回 &lt;code>application/pdf&lt;/code>。本文介绍一下这个库以及开发过程中的踩坑记录。&lt;/p>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>gRPC on 漩涡的博客</title><link>https://xuanwo.io/tags/grpc/</link><description>Recent content in gRPC on 漩涡的博客</description><generator>Hugo -- gohugo.io</generator><language>zh-Hans</language><lastBuildDate>Sun, 10 Mar 2019 04:00:00 +0000</lastBuildDate><atom:link href="https://xuanwo.io/tags/grpc/index.xml" rel="self" type="application/rss+xml"/><item><title>(我的) Golang 错误处理最佳实践</title><link>https://xuanwo.io/2020/05-go-error-handling/</link><pubDate>Sun, 14 Jun 2020 01:00:00 +0000</pubDate><guid>https://xuanwo.io/2020/05-go-error-handling/</guid><description>&lt;p>在开发 &lt;a href="https://github.com/Xuanwo/storage">storage&lt;/a> 库的过程中，我设计并实现了一套 Golang 错误处理的规范。原始的提案和规范可以参考 &lt;a href="https://storage.xuanwo.io/design/11-error-handling.html">Proposal: Error Handling&lt;/a> 与 &lt;a href="https://storage.xuanwo.io/spec/1-error-handling.html">Spec: Error Handling&lt;/a>，本文是两者汇总后重新梳理的产物。&lt;/p>
+&lt;h2 id="tldr">TL;DR&lt;/h2>
+&lt;ul>
+&lt;li>区分 &lt;code>预期&lt;/code> 与 &lt;code>非预期&lt;/code> 错误&lt;/li>
+&lt;li>定义所有预期错误，返回所有的非预期错误&lt;/li>
+&lt;li>总是返回自定义错误类型以携带与错误上下文有关的信息，该类型必须实现 &lt;code>xerrors.Wrapper&lt;/code> 接口&lt;/li>
+&lt;li>使用 &lt;code>errors.Is&lt;/code> 来判断错误，使用 &lt;code>errors.As&lt;/code> 来获取错误上下文&lt;/li>
+&lt;/ul>
+&lt;hr>
+&lt;h2 id="定义">定义&lt;/h2>
+&lt;ul>
+&lt;li>&lt;code>错误&lt;/code>：不管是错误，故障，异常，失效抑或其他近义词汇，只要程序运行不符合预期，下文统称为 &lt;code>错误&lt;/code>&lt;/li>
+&lt;li>&lt;code>包&lt;/code>: 所有有效的 golang &lt;code>package&lt;/code>&lt;/li>
+&lt;li>&lt;code>实现者&lt;/code>：负责实现一个 &lt;code>包&lt;/code> 的开发者&lt;/li>
+&lt;li>&lt;code>调用者&lt;/code>：负责调用一个 &lt;code>包&lt;/code> 的开发者&lt;/li>
+&lt;/ul>
+&lt;h2 id="目标">目标&lt;/h2>
+&lt;p>一个好的错误处理机制应该是这样的：&lt;/p>
+&lt;ul>
+&lt;li>实现者不需要做额外的工作，只需要专注于处理包自身的错误&lt;/li>
+&lt;li>调用者能够知道发生了什么错误&lt;/li>
+&lt;li>调用者能够决定如何处理这个错误&lt;/li>
+&lt;li>调用者能够了解为什么会发生这个错误&lt;/li>
+&lt;/ul>
+&lt;h2 id="设计">设计&lt;/h2>
+&lt;p>从一个包的角度来看，能够将错误分为两类：&lt;code>预期&lt;/code> 与 &lt;code>非预期&lt;/code> 。&lt;/p>
+&lt;ul>
+&lt;li>&lt;code>预期&lt;/code>错误：实现者预期可能会出现并能处理的错误
+&lt;ul>
+&lt;li>比如在解析 Protocol 时，返回 &lt;code>ErrUnsupportedProtocol&lt;/code> 表示该 Protocol 尚未支持&lt;/li>
+&lt;li>所有的预期错误都必须提前声明&lt;/li>
+&lt;li>预期错误属于当前包，只有在当前包中才能返回，不允许直接返回其他包定义的预期错误&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>&lt;code>非预期&lt;/code>错误：实现者不知道为何会出现或者无法处理的错误
+&lt;ul>
+&lt;li>比如调用其他包返回的错误&lt;/li>
+&lt;li>所有的非预期错误实现者都不需要处理&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ul>
+&lt;p>无论是何种错误，在返回时都必须被包裹在自定义的错误类型中，该类型需要实现 &lt;code>error&lt;/code> 和 &lt;code>xerrors.Wrapper&lt;/code> 接口并携带充足的上下文信息：&lt;/p>
+&lt;div class="highlight">&lt;pre style="background-color:#f0f0f0;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-go" data-lang="go">&lt;span style="color:#007020;font-weight:bold">var&lt;/span> (
+&lt;span style="color:#60a0b0;font-style:italic">// ErrSegmentPartsEmpty means segment&amp;#39;s parts is empty
+&lt;/span>&lt;span style="color:#60a0b0;font-style:italic">&lt;/span> ErrSegmentPartsEmpty = errors.&lt;span style="color:#06287e">New&lt;/span>(&lt;span style="color:#4070a0">&amp;#34;segment part empty&amp;#34;&lt;/span>)
+)
+&lt;span style="color:#007020;font-weight:bold">type&lt;/span> Error &lt;span style="color:#007020;font-weight:bold">struct&lt;/span> {
+Op &lt;span style="color:#902000">string&lt;/span>
+Err &lt;span style="color:#902000">error&lt;/span>
+Seg &lt;span style="color:#666">*&lt;/span>Segment
+}
+&lt;span style="color:#007020;font-weight:bold">func&lt;/span> (e &lt;span style="color:#666">*&lt;/span>Error) &lt;span style="color:#06287e">Error&lt;/span>() &lt;span style="color:#902000">string&lt;/span> {
+&lt;span style="color:#007020;font-weight:bold">return&lt;/span> fmt.&lt;span style="color:#06287e">Sprintf&lt;/span>(&lt;span style="color:#4070a0">&amp;#34;%s: %v: %s&amp;#34;&lt;/span>, e.Op, e.Seg, e.Err)
+}
+&lt;span style="color:#007020;font-weight:bold">func&lt;/span> (e &lt;span style="color:#666">*&lt;/span>Error) &lt;span style="color:#06287e">Unwrap&lt;/span>() &lt;span style="color:#902000">error&lt;/span> {
+&lt;span style="color:#007020;font-weight:bold">return&lt;/span> e.Err
+}
+&lt;/code>&lt;/pre>&lt;/div>&lt;ul>
+&lt;li>
+&lt;p>一般的，可以使用 &lt;code>Op&lt;/code> 表示什么操作触发了这个错误，使用 &lt;code>Err&lt;/code> 来携带原始错误。&lt;/p>
+&lt;ul>
+&lt;li>
+&lt;p>如果是预期错误，那 &lt;code>Err&lt;/code> 应当是提前声明好的 &lt;code>error&lt;/code>&lt;/p>
+&lt;div class="highlight">&lt;pre style="background-color:#f0f0f0;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-go" data-lang="go">&lt;span style="color:#007020;font-weight:bold">return&lt;/span> &lt;span style="color:#666">&amp;amp;&lt;/span>Error{&lt;span style="color:#4070a0">&amp;#34;parse&amp;#34;&lt;/span>, s[&lt;span style="color:#40a070">0&lt;/span>], &lt;span style="color:#007020;font-weight:bold">nil&lt;/span>, ErrUnsupportedProtocol}
+&lt;/code>&lt;/pre>&lt;/div>&lt;/li>
+&lt;li>
+&lt;p>如果是非预期错误，那 &lt;code>Err&lt;/code> 应当是未被修改的原始错误或者实现了 &lt;code>xerrors.Wrapper&lt;/code> 接口的自定义错误&lt;/p>
+&lt;div class="highlight">&lt;pre style="background-color:#f0f0f0;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-go" data-lang="go">port, err &lt;span style="color:#666">:=&lt;/span> strconv.&lt;span style="color:#06287e">ParseInt&lt;/span>(s[&lt;span style="color:#40a070">2&lt;/span>], &lt;span style="color:#40a070">10&lt;/span>, &lt;span style="color:#40a070">64&lt;/span>)
+&lt;span style="color:#007020;font-weight:bold">if&lt;/span> err &lt;span style="color:#666">!=&lt;/span> &lt;span style="color:#007020;font-weight:bold">nil&lt;/span> {
+&lt;span style="color:#007020;font-weight:bold">return&lt;/span> &lt;span style="color:#007020;font-weight:bold">nil&lt;/span>, &lt;span style="color:#666">&amp;amp;&lt;/span>Error{&lt;span style="color:#4070a0">&amp;#34;parse&amp;#34;&lt;/span>, ProtocolHTTP, s[&lt;span style="color:#40a070">1&lt;/span>:], err}
+}
+&lt;/code>&lt;/pre>&lt;/div>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>
+&lt;p>自定义错误类型中出现的 &lt;code>ContextX&lt;/code> 类型应当尽可能的实现 &lt;code>String() string&lt;/code> 方法&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>同一个项目中需要统一 &lt;code>Error() string&lt;/code> 返回的字符串格式&lt;/p>
+&lt;ul>
+&lt;li>在 &lt;a href="https://github.com/Xuanwo/storage">storage&lt;/a> 项目中，我选择的格式是 &lt;code>{Op}: {ContextA}, {ContextB}: {Err}&lt;/code>&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>Unwrap() error&lt;/code> 方法中，应当直接返回 &lt;code>Err&lt;/code> 并不做任何修改&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;p>调用者可以自行决定如何使用包返回的错误：&lt;/p>
+&lt;ul>
+&lt;li>直接返回给上层应用
+&lt;div class="highlight">&lt;pre style="background-color:#f0f0f0;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-go" data-lang="go">&lt;span style="color:#007020;font-weight:bold">if&lt;/span> err &lt;span style="color:#666">!=&lt;/span> &lt;span style="color:#007020;font-weight:bold">nil&lt;/span> {
+&lt;span style="color:#007020;font-weight:bold">return&lt;/span> err
+}
+&lt;/code>&lt;/pre>&lt;/div>&lt;/li>
+&lt;li>处理特定的错误
+&lt;div class="highlight">&lt;pre style="background-color:#f0f0f0;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-go" data-lang="go">&lt;span style="color:#007020;font-weight:bold">if&lt;/span> err &lt;span style="color:#666">!=&lt;/span> &lt;span style="color:#007020;font-weight:bold">nil&lt;/span> &lt;span style="color:#666">&amp;amp;&amp;amp;&lt;/span> errors.&lt;span style="color:#06287e">Is&lt;/span>(err, segment.ErrSegmentPartsEmpty) {
+log.&lt;span style="color:#06287e">Print&lt;/span>(&lt;span style="color:#4070a0">&amp;#34;segment is empty&amp;#34;&lt;/span>)
+}
+&lt;/code>&lt;/pre>&lt;/div>&lt;/li>
+&lt;li>获取错误的上下文信息
+&lt;div class="highlight">&lt;pre style="background-color:#f0f0f0;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-go" data-lang="go">&lt;span style="color:#007020;font-weight:bold">var&lt;/span> e segment.Error
+&lt;span style="color:#007020;font-weight:bold">if&lt;/span> err &lt;span style="color:#666">!=&lt;/span> &lt;span style="color:#007020;font-weight:bold">nil&lt;/span> &lt;span style="color:#666">&amp;amp;&amp;amp;&lt;/span> errors.&lt;span style="color:#06287e">As&lt;/span>(err, &lt;span style="color:#666">&amp;amp;&lt;/span>e) {
+log.&lt;span style="color:#06287e">Print&lt;/span>(e.Segment)
+}
+&lt;/code>&lt;/pre>&lt;/div>&lt;/li>
+&lt;/ul></description></item><item><title>go-mime 介绍以及踩坑记录</title><link>https://xuanwo.io/2020/04-go-mime-intro/</link><pubDate>Mon, 01 Jun 2020 01:00:00 +0000</pubDate><guid>https://xuanwo.io/2020/04-go-mime-intro/</guid><description>&lt;p>上周花了一天时间写了一个 &lt;a href="https://github.com/qingstor/go-mime">MIME 检测&lt;/a> 的库，作用是能够根据后缀名来检测对应的 Media Type 类型，比如说输入 &lt;code>pdf&lt;/code> 能够返回 &lt;code>application/pdf&lt;/code>。本文介绍一下这个库以及开发过程中的踩坑记录。&lt;/p>
 &lt;h2 id="背景">背景&lt;/h2>
 &lt;p>服务器端检测文件 &lt;code>Media Type&lt;/code> （之前经常被叫做 &lt;code>MIME types&lt;/code>）的方法通常有三种：第一是看请求中携带的 &lt;code>content-type&lt;/code>，第二是读取文件开头的 &lt;code>Magic Number&lt;/code>，第三则是看请求中携带的文件名。&lt;/p>
 &lt;p>其中只有第一种根据 &lt;code>content-type&lt;/code> 判断是在 &lt;a href="https://tools.ietf.org/html/rfc7231#section-3.1.1.5">RFC7273&lt;/a> 中标准化过的行为，剩下的两种都是约定俗成：提供/使用这种 &lt;code>Media Type&lt;/code> 的软件/服务自行规定 &lt;code>Magic Number&lt;/code> 和后缀名。&lt;/p>
@@ -1656,58 +1761,4 @@ assert.&lt;span style="color:#06287e">True&lt;/span>(t, task.&lt;span style="col
 &lt;li>&lt;a href="https://github.com/yunify/qsctl/pull/146">qsctl PR: *: Refactor task scheduler system&lt;/a>&lt;/li>
 &lt;li>&lt;a href="https://github.com/yunify/qsctl/pull/151">qsctl PR: *: Refactor task type system&lt;/a>&lt;/li>
 &lt;li>&lt;a href="https://docs.google.com/presentation/d/1DrGBNIFXRZbMehPWygF1fsgGXypmpF83NzBxSpUBk4o/edit?usp=sharing">数据驱动编程及其在 qsctl 中的实践&lt;/a> 的 Slides&lt;/li>
-&lt;/ul></description></item><item><title>Archlinux 连接并使用打印机</title><link>https://xuanwo.io/2019/09/19/archlinux-cups-connect/</link><pubDate>Thu, 19 Sep 2019 01:00:00 +0000</pubDate><guid>https://xuanwo.io/2019/09/19/archlinux-cups-connect/</guid><description>&lt;p>一直觉得折腾打印机很麻烦，所以每次都是让朋友 F 帮我打印各种材料。但是现在朋友 F 已经离职了，所以只能自己想办法搞了。本文会首先介绍操作系统与打印机通讯的原理，然后讲解如何在 Archlinux 连接并使用打印机，最后介绍常见的故障排除手段。&lt;/p>
-&lt;h2 id="打印系统">打印系统&lt;/h2>
-&lt;h3 id="假脱机spool">假脱机(spool)&lt;/h3>
-&lt;blockquote>
-&lt;p>在信息学中，假脱机（外部设备联机并行操作，SPOOL,Simultaneous Peripheral Operations On-line）是一种数据缓冲，指传输数据的过程中，将数据存放在临时工作区中。其它程序可以在之后的任意时间点对其存取。通常英语动词 spool 可以指储存设备的行为，具体表现为物理意义上的缠或卷，就比如说磁带机。最常见的假脱机的应用是打印缓存，即把打印任务加入到队列。&lt;/p>
-&lt;/blockquote>
-&lt;p>UNIX 和 Linux 系统会为每一个打印机创建一个任务队列，交由一个假脱机程序来管理。其他程序将打印任务提交给这个假脱机程序，然后它就会进行一系列的过滤操作最后发送到打印机上。最初大家都是用的 BSD 打印子系统，其中包含一个守护进程 lpd 和客户端命令 lpr。这个系统由 IETF 实现标准化，成为 &lt;a href="https://www.ietf.org/rfc/rfc1179.txt">RFC 1179&lt;/a> 中所述的行式打印机守护程序协议。随着打印技术的不断发展，大家也在不断的对打印系统做改进，比如 &lt;a href="http://lprng.sourceforge.net/">LPRng&lt;/a> 和 &lt;a href="https://www.cups.org/">CUPS&lt;/a>，可以支持在同一个页面上使用不同字体，支持打印图像，支持打印变宽字体，支持字距调整和连字等。&lt;/p>
-&lt;p>目前使用最广泛的打印系统是 CUPS，也是 Archlinux 和很多其他 Liunx 发行版缺省的打印系统。&lt;/p>
-&lt;h3 id="postscript">PostScript&lt;/h3>
-&lt;p>PostScript 是主要用于电子产业和桌面出版领域的一种页面描述语言和编程语言，在 1984 年由 Adobe 开发并推向市场，在乔布斯的敦促下被改进为驱动激光打印机的语言，后来加入到 Conon 打印机中，带来了 &lt;a href="https://en.wikipedia.org/wiki/LaserWriter">Apple LaserWriter&lt;/a>，引发了二十世纪八十年代中期的桌面印刷革命，并由此成为业界标准。其后继者是同样由 Adobe 开发的 &lt;a href="https://en.wikipedia.org/wiki/PDF">PDF(Portable Document Format)&lt;/a>。&lt;/p>
-&lt;h3 id="cups">CUPS&lt;/h3>
-&lt;p>CUPS 打印系统会在本地启动一个名为 cupsd 的守护进程，它将会维护打印机和打印队列，自带 Web 管理工具(http://localhost:631)。&lt;/p>
-&lt;p>CUPS 通过 AppSocket，IPP，LPD 等多种协议来连接到打印机并创建任务队列，之后应用程序将文件发送给 CUPS 守护进程，CUPS 通过 MIME 类型来确定文件的转换过滤器，将输入文件转换为 PostScript 格式或者其他类型，然后再发送给打印机。&lt;/p>
-&lt;h2 id="连接并使用">连接并使用&lt;/h2>
-&lt;h3 id="安装-cups">安装 CUPS&lt;/h3>
-&lt;div class="highlight">&lt;pre style="background-color:#f0f0f0;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-bash" data-lang="bash">pacman -S cups
-&lt;/code>&lt;/pre>&lt;/div>&lt;p>可选择安装的其他包：&lt;/p>
-&lt;ul>
-&lt;li>&lt;a href="https://www.archlinux.org/packages/extra/x86_64/cups-pdf/">&lt;code>cups-pdf&lt;/code>&lt;/a> 包可以在本地启动一个打印为 PDF 的虚拟打印机。&lt;/li>
-&lt;li>&lt;a href="https://www.archlinux.org/packages/extra/x86_64/print-manager/">&lt;code>print-manager&lt;/code>&lt;/a> 是 KDE 提供的打印机和打印任务图形化管理界面&lt;/li>
-&lt;li>&lt;a href="https://www.archlinux.org/packages/extra/x86_64/system-config-printer/">&lt;code>system-config-printer&lt;/code>&lt;/a> 是 GTK 下的图形化管理界面，还有 applet 支持&lt;/li>
-&lt;/ul>
-&lt;h3 id="启动守护进程">启动守护进程&lt;/h3>
-&lt;div class="highlight">&lt;pre style="background-color:#f0f0f0;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-bash" data-lang="bash">systemctl start org.cups.cupsd.service
-&lt;/code>&lt;/pre>&lt;/div>&lt;p>默认情况下无需其他配置，可以访问 localhost:631 来查看服务是否正常启动&lt;/p>
-&lt;h3 id="添加打印机">添加打印机&lt;/h3>
-&lt;blockquote>
-&lt;p>以 KDE 下使用 print-manager 为例，其他的平台应该大同小异&lt;/p>
-&lt;/blockquote>
-&lt;p>点击添加打印机开始添加，第一步是选择打印机协议和输入 IP 地址，根据自己打印机的实际情况进行选择：&lt;/p>
-&lt;p>&lt;img src="1st.png" alt="">&lt;/p>
-&lt;p>第二步选择打印机驱动：&lt;/p>
-&lt;p>&lt;img src="2nd.png" alt="">&lt;/p>
-&lt;p>没有找到对应的驱动，则需要自行安装，可以按照如下顺序寻找：&lt;/p>
-&lt;ul>
-&lt;li>&lt;a href="https://aur.archlinux.org/">AUR&lt;/a>，google 搜索 &lt;code>AUR + 设备型号&lt;/code> 一般就能找到&lt;/li>
-&lt;li>&lt;a href="http://www.openprinting.org/printers">Printer Listings&lt;/a>，OpenPrinting 提供的打印机驱动，放在 &lt;code>/usr/share/cups/model/&lt;/code> 下&lt;/li>
-&lt;li>设备供应商网站，放在 &lt;code>/usr/share/cups/model/&lt;/code> 下&lt;/li>
-&lt;/ul>
-&lt;p>最后填写一些打印机的相关描述信息即可，建议写清楚一些，以免以后分不清不同打印机的位置：&lt;/p>
-&lt;p>&lt;img src="3rd.png" alt="">&lt;/p>
-&lt;p>打印机添加完毕后可以选择打印测试页来进行测试。&lt;/p>
-&lt;h3 id="使用打印机">使用打印机&lt;/h3>
-&lt;p>只需要在应用程序的菜单中点击打印然后选择刚才添加的打印机即可。&lt;/p>
-&lt;h2 id="常见故障">常见故障&lt;/h2>
-&lt;h3 id="无法连接上打印机">无法连接上打印机&lt;/h3>
-&lt;p>检查网络，防火墙等配置，检查 IP 地址是否输入错误。&lt;/p>
-&lt;h3 id="连接上打印机但是提交任务时报错-print-job-was-not-accepted">连接上打印机，但是提交任务时报错 &amp;ldquo;Print job was not accepted.&amp;rdquo;&lt;/h3>
-&lt;p>首先检查自己选择的协议是否正确，然后检查自己选择的驱动是否正确&lt;/p>
-&lt;h2 id="相关资料">相关资料&lt;/h2>
-&lt;ul>
-&lt;li>&lt;a href="https://www.ibm.com/developerworks/cn/linux/l-lpic1-108-4/index.html">学习 Linux，101: 管理打印机和打印&lt;/a> 教程从 &lt;a href="http://www.lpi.org/">LPIC-1&lt;/a> 备考的角度介绍了管理和使用打印机的相关知识&lt;/li>
-&lt;li>&lt;a href="https://wiki.linuxfoundation.org/openprinting/start">OpenPrinting&lt;/a> 提供了驱动程序，打印机支持等资源和信息&lt;/li>
-&lt;li>维基百科词条 &lt;a href="https://zh.wikipedia.org/wiki/PostScript">PostScript&lt;/a> 详细地介绍了 PostScript 的前世今生&lt;/li>
 &lt;/ul></description></item></channel></rss>
