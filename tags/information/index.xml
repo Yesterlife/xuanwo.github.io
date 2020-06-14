@@ -103,6 +103,14 @@ log.&lt;span style="color:#06287e">Print&lt;/span>(&lt;span style="color:#4070a0
 log.&lt;span style="color:#06287e">Print&lt;/span>(e.Segment)
 }
 &lt;/code>&lt;/pre>&lt;/div>&lt;/li>
+&lt;/ul>
+&lt;h2 id="参考资料">参考资料&lt;/h2>
+&lt;ul>
+&lt;li>&lt;a href="https://storage.xuanwo.io/design/11-error-handling.html">storage Proposal: Error Handling&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://storage.xuanwo.io/spec/1-error-handling.html">storage Spec: Error Handling&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://blog.golang.org/error-handling-and-go">Go Blog: Error handling and Go&lt;/a>&lt;/li>
+&lt;li>&lt;a href="https://blog.golang.org/go1.13-errors">Go Blog: Working with Errors in Go 1.13&lt;/a>&lt;/li>
+&lt;li>&lt;a href="http://joeduffyblog.com/2016/02/07/the-error-model/">The Error Model in Midori&lt;/a>&lt;/li>
 &lt;/ul></description></item><item><title>go-mime 介绍以及踩坑记录</title><link>https://xuanwo.io/2020/04-go-mime-intro/</link><pubDate>Mon, 01 Jun 2020 01:00:00 +0000</pubDate><guid>https://xuanwo.io/2020/04-go-mime-intro/</guid><description>&lt;p>上周花了一天时间写了一个 &lt;a href="https://github.com/qingstor/go-mime">MIME 检测&lt;/a> 的库，作用是能够根据后缀名来检测对应的 Media Type 类型，比如说输入 &lt;code>pdf&lt;/code> 能够返回 &lt;code>application/pdf&lt;/code>。本文介绍一下这个库以及开发过程中的踩坑记录。&lt;/p>
 &lt;h2 id="背景">背景&lt;/h2>
 &lt;p>服务器端检测文件 &lt;code>Media Type&lt;/code> （之前经常被叫做 &lt;code>MIME types&lt;/code>）的方法通常有三种：第一是看请求中携带的 &lt;code>content-type&lt;/code>，第二是读取文件开头的 &lt;code>Magic Number&lt;/code>，第三则是看请求中携带的文件名。&lt;/p>
